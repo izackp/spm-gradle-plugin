@@ -43,11 +43,26 @@ abstract class GenerateBridgingTask() : SpmGradlePluginTask() {
         )
     }
 
+    // Host Apple swift (e.g. 6.2.4) is used by this task; scd ships a different
+    // swift (e.g. 6.2.1). Sharing one scratch path lets host swift write
+    // Modules-tool/ swiftmodules that scd can't import on the next build.
+    // Run in a sibling scratch dir so the two compilers never overlap, then
+    // mirror the plugin outputs into the main scratch path so scd archive's
+    // own swift-build finds them where it expects.
+    @get:Internal
+    val bridgingScratchPath: java.io.File
+        get() {
+            val base = buildDirPath
+            val sibling = java.io.File(base.parentFile, "${base.name}-bridging")
+            sibling.mkdirs()
+            return sibling
+        }
+
     private val pluginAvailable: Boolean
         get() {
             return swift("package",
                 "--disable-experimental-prebuilts",
-                "--scratch-path", buildDirPath,
+                "--scratch-path", bridgingScratchPath,
                 "--package-path", packageDir,
                 "plugin", "--list"
             ) {_, out ->
@@ -61,7 +76,7 @@ abstract class GenerateBridgingTask() : SpmGradlePluginTask() {
             val args = mutableListOf(
                 "package",
                 "--disable-experimental-prebuilts",
-                "--scratch-path", buildDirPath,
+                "--scratch-path", bridgingScratchPath,
                 "--package-path", packageDir,
                 "plugin", "generate-java-bridging",
                 "--product", product.get(),
@@ -73,6 +88,23 @@ abstract class GenerateBridgingTask() : SpmGradlePluginTask() {
             }
 
             swift(*args.toTypedArray(), *extraArguments.get().toTypedArray())
+
+            mirrorPluginOutputs()
         }
+    }
+
+    /**
+     * Mirror the bridging-scratch plugin outputs into the main scratch dir.
+     * scd archive's own swift-build expects to find plugin outputs at
+     * `<scratchPath>/plugins/generate-java-bridging/outputs/...`. We don't
+     * want generateBridging to write there directly (host-swift Modules-tool
+     * contamination), so copy the output tree post-hoc.
+     */
+    private fun mirrorPluginOutputs() {
+        val src = java.io.File(bridgingScratchPath, "plugins/generate-java-bridging/outputs")
+        if (!src.exists()) return
+        val dst = java.io.File(buildDirPath, "plugins/generate-java-bridging/outputs")
+        dst.parentFile.mkdirs()
+        src.copyRecursively(dst, overwrite = true)
     }
 }

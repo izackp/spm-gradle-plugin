@@ -2,6 +2,7 @@ package io.scade.gradle.plugins.android.spm
 
 import io.scade.gradle.plugins.spm.TargetPlatform
 import io.scade.gradle.plugins.spm.tasks.AssembleSwiftPackageTask
+import io.scade.gradle.plugins.spm.tasks.PerPlatformInvocation
 
 import com.android.ddmlib.AndroidDebugBridge
 import com.android.ddmlib.IDevice
@@ -20,17 +21,38 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
     @Internal
     val adbPath: RegularFileProperty = project.objects.fileProperty()
 
-    override fun platformArgs(): List<String> {
+    /** Args shared across every per-arch scd invocation (toolchain, sdk, ndk). */
+    private fun sharedAndroidArgs(): List<String> {
         val args = mutableListOf<String>()
-        var buildArchs = listOf<String>()
-
-        val androidPlatform = platforms.get().find { it is TargetPlatform.Android }
-        androidPlatform?.let {
-            buildArchs = it.archs
-            it.toolchain?.let { path ->
-                args += listOf("--android-swift-toolchain", path.absolutePath)
-            }
+        val androidPlatform = platforms.get().find { it is TargetPlatform.Android } as? TargetPlatform.Android
+        androidPlatform?.toolchain?.let { tc ->
+            args += listOf("--android-swift-toolchain", tc.absolutePath)
         }
+        try {
+            sdkPath.orNull?.let {
+                val path = it.asFile.absolutePath
+                project.logger.lifecycle("Building for Android SDK at: $path")
+                args += listOf("--android-sdk", path)
+            }
+        } catch (_: Exception) {
+            project.logger.lifecycle("An SDK path not set in AGP, trying to autodetect")
+        }
+        try {
+            ndkPath.orNull?.let {
+                val path = it.asFile.absolutePath
+                project.logger.lifecycle("Building for Android NDK at: $path")
+                args += listOf("--android-ndk", path)
+            }
+        } catch (_: Exception) {
+            project.logger.lifecycle("An NDK path not set in AGP, trying to autodetect")
+        }
+        return args
+    }
+
+    /** Effective list of archs to build (respects connected device, falls back to defaults). */
+    private fun effectiveAndroidArchs(): List<String> {
+        val androidPlatform = platforms.get().find { it is TargetPlatform.Android } as? TargetPlatform.Android ?: return emptyList()
+        var buildArchs = androidPlatform.archs
 
         if (assembleDebug.get()) {
             val abi = getConnectedDeviceAbi()
@@ -45,32 +67,27 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
                 project.logger.lifecycle("⚠️ No connected devices found. Assembling for default Android platforms.")
             }
         }
+        return buildArchs
+    }
 
-        args += buildArchs.flatMap {
-            listOf("--platform", "android-$it")
-        }
-
-        try {
-            sdkPath.orNull?.let {
-                val path = it.asFile.absolutePath
-                project.logger.lifecycle("Building for Android SDK at: $path")
-                args += listOf("--android-sdk", path)
-            }
-        } catch (_: Exception) {
-            project.logger.lifecycle("An SDK path not set in AGP, trying to autodetect")
-        }
-
-        try {
-            ndkPath.orNull?.let {
-                val path = it.asFile.absolutePath
-                project.logger.lifecycle("Building for Android NDK at: $path")
-                args += listOf("--android-ndk", path)
-            }
-        } catch (_ : Exception) {
-            project.logger.lifecycle("An NDK path not set in AGP, trying to autodetect")
-        }
-
+    override fun platformArgs(): List<String> {
+        val args = mutableListOf<String>()
+        args += effectiveAndroidArchs().flatMap { listOf("--platform", "android-$it") }
+        args += sharedAndroidArgs()
         return args
+    }
+
+    /**
+     * One invocation per Android arch. scd archive (and its underlying
+     * swift-build) is single-triple per invocation, so this is the unit at
+     * which parallelism is meaningful.
+     */
+    override fun expandedPlatformInvocations(): List<PerPlatformInvocation> {
+        val shared = sharedAndroidArgs()
+        return effectiveAndroidArchs().map { arch ->
+            val label = "android-$arch"
+            PerPlatformInvocation(label, listOf("--platform", label) + shared)
+        }
     }
 
     private fun getConnectedDeviceAbi(): String? {
