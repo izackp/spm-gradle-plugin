@@ -25,3 +25,5 @@ build
 
 # Ignore Idea directory
 .idea
+# Publish output for the `maven` branch (see publishAllToRepoDir)
+/maven/

@@ -12,3 +12,11 @@ tasks.register("buildAll") {
 tasks.register("publishAllToMavenLocal") {
     dependsOn(gradle.includedBuilds.map { it.task(":${it.name}:publishToMavenLocal") })
 }
+
+// Publishes into `maven/` at the repo root, which is served over
+// raw.githubusercontent.com so consumers need nothing in ~/.m2.
+tasks.register("publishAllToRepoDir") {
+    dependsOn(gradle.includedBuilds.map {
+        it.task(":${it.name}:publishAllPublicationsToRepoDirRepository")
+    })
+}

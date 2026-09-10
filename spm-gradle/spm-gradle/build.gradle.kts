@@ -18,6 +18,18 @@ kotlin {
     jvmToolchain(17)
 }
 
+publishing {
+    repositories {
+        maven {
+            name = "repoDir"
+            url = uri(
+                providers.gradleProperty("spmRepoDir")
+                    .getOrElse("${rootProject.rootDir}/../maven")
+            )
+        }
+    }
+}
+
 gradlePlugin {
     website = "https://github.com/scade-platform/spm-gradle-plugin.git"
     vcsUrl = "https://github.com/scade-platform/spm-gradle-plugin.git"
