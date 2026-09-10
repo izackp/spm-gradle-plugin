@@ -8,6 +8,8 @@ import com.android.ddmlib.AndroidDebugBridge
 import com.android.ddmlib.IDevice
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 
 
@@ -20,6 +22,10 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
 
     @Internal
     val adbPath: RegularFileProperty = project.objects.fileProperty()
+
+    @get:Input
+    val useConnectedDeviceArch: Property<Boolean> =
+        project.objects.property(Boolean::class.java).convention(true)
 
     /** Args shared across every per-arch scd invocation (toolchain, sdk, ndk). */
     private fun sharedAndroidArgs(): List<String> {
@@ -54,7 +60,7 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
         val androidPlatform = platforms.get().find { it is TargetPlatform.Android } as? TargetPlatform.Android ?: return emptyList()
         var buildArchs = androidPlatform.archs
 
-        if (assembleDebug.get()) {
+        if (assembleDebug.get() && useConnectedDeviceArch.get()) {
             val abi = getConnectedDeviceAbi()
             if (abi != null) {
                 project.logger.lifecycle("Detected connected device ABI: $abi")
