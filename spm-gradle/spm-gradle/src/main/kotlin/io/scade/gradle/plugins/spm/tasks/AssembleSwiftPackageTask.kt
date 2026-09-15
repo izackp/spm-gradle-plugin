@@ -41,6 +41,22 @@ abstract class AssembleSwiftPackageTask() : SpmGradlePluginTask() {
         outputDirectory.set(project.layout.buildDirectory.dir("lib"))
     }
 
+    /** "debug" or "release" -- the axis whose artifacts must not overwrite each other. */
+    private fun configurationDirName(): String = if (assembleDebug.get()) "debug" else "release"
+
+    /**
+     * Where scd is told to write. It lays out `lib/<abi>/...` underneath, and
+     * `outputDirectory` is the `lib` directory AGP packages from -- so derive one
+     * from the other rather than hardcoding the project build dir.
+     *
+     * They used to be independent: `--output` was always the project build dir
+     * while `outputDirectory` defaulted to `<build>/lib`. That held only while
+     * nothing moved `outputDirectory`; moving it redirected what AGP packaged
+     * while scd kept writing to the old path, producing an APK with no library
+     * and no error. Deriving it makes that state unrepresentable.
+     */
+    private fun scdOutputRoot(): File = outputDirectory.get().asFile.parentFile
+
     @TaskAction
     fun run() {
         val linkArgs = linkDependencies.get().flatMap { listOf("-l", it) }
@@ -54,7 +70,7 @@ abstract class AssembleSwiftPackageTask() : SpmGradlePluginTask() {
             scd("archive",
                 "--build-dir", buildDirPath,
                 "--path", packageDir,
-                "--output", project.layout.buildDirectory.get(),
+                "--output", scdOutputRoot(),
                 "--product", product.get(),
                 "--configuration", if (assembleDebug.get()) "Debug" else "Release",
                 *scdOptions.get().toTypedArray(),
@@ -68,7 +84,7 @@ abstract class AssembleSwiftPackageTask() : SpmGradlePluginTask() {
 
     private fun runParallel(invocations: List<PerPlatformInvocation>, linkArgs: List<String>) {
         val rootBuildDir = project.layout.buildDirectory.asFile.get()
-        val parallelRoot = File(rootBuildDir, "swiftpm-parallel")
+        val parallelRoot = File(rootBuildDir, "swiftpm-parallel/" + configurationDirName())
         parallelRoot.mkdirs()
 
         // scd archive's underlying swift-build looks up plugin outputs at
@@ -130,7 +146,7 @@ abstract class AssembleSwiftPackageTask() : SpmGradlePluginTask() {
             executor.awaitTermination(1, TimeUnit.SECONDS)
         }
 
-        mergeOutputs(perPlatformOutputs, File(rootBuildDir, "lib"))
+        mergeOutputs(perPlatformOutputs, outputDirectory.get().asFile)
     }
 
     private fun mergeOutputs(perPlatform: Map<String, File>, finalLib: File) {

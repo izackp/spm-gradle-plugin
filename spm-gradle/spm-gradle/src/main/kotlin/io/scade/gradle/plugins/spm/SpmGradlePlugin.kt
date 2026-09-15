@@ -93,6 +93,23 @@ open class SpmGradlePlugin @Inject constructor (objects: ObjectFactory)
             it.platforms.set(platforms)
             it.assembleDebug.set(debuggable)
             it.scdOptions.set(extension.scdOptions)
+
+            // Per configuration, because Debug and Release produce different
+            // binaries and previously archived to the same `<build>/lib`: whichever
+            // ran last won, and nothing recorded which configuration the artifacts
+            // came from. A Release build could therefore be verified and packaged
+            // as Debug.
+            //
+            // Set here rather than in the task's own defaults because this is where
+            // `debuggable` is known, and before AGP reads the property -- setting it
+            // afterwards leaves AGP packaging the original path.
+            //
+            // The build scratch stays shared: SwiftPM already separates
+            // configurations inside it (debug.yaml / release.yaml, per-triple object
+            // dirs), so switching does not invalidate anything. Splitting it would
+            // only buy concurrent builds, at the cost of a second copy of everything.
+            val configurationDir = if (debuggable) "debug" else "release"
+            it.outputDirectory.set(project.layout.buildDirectory.dir("scd/$configurationDir/lib"))
         }
 
         val cleanTask = project.tasks.register("clean${variant.capitalized()}SwiftBuildDir", Delete::class.java) {
