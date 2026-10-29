@@ -1,6 +1,8 @@
 package io.scade.gradle.plugins.spm.tasks
 
+import io.scade.gradle.plugins.spm.SwiftBackend
 import io.scade.gradle.plugins.spm.TargetPlatform
+import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
@@ -59,6 +61,11 @@ abstract class AssembleSwiftPackageTask() : SpmGradlePluginTask() {
 
     @TaskAction
     fun run() {
+        if (swiftBackend == SwiftBackend.SWIFT_SDK) {
+            runWithSwiftSdk()
+            return
+        }
+
         val linkArgs = linkDependencies.get().flatMap { listOf("-l", it) }
 
         val invocations = expandedPlatformInvocations()
@@ -184,5 +191,11 @@ abstract class AssembleSwiftPackageTask() : SpmGradlePluginTask() {
 
     open fun platformArgs(): List<String> {
         return expandedPlatformInvocations().flatMap { it.args }
+    }
+
+    /** Builds with `swift build --swift-sdk` instead of scd. Platform subclasses implement it. */
+    open fun runWithSwiftSdk() {
+        throw GradleException("swiftpm.backend=${SwiftBackend.SWIFT_SDK.id} builds Android only; " +
+            "use swiftpm.backend=${SwiftBackend.SCD.id} for ${platforms.get().joinToString { it.name }}")
     }
 }

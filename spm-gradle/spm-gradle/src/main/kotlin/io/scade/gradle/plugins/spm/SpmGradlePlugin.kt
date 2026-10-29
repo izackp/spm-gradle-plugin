@@ -43,9 +43,13 @@ open class SpmGradlePlugin @Inject constructor (objects: ObjectFactory)
     override fun apply(project: Project) {
         val extension = project.extensions.create("swiftpm", SpmGradlePluginExtension::class.java)
 
-        resolveScdTask = project.tasks.register("resolveScdTool", ResolveScdToolTask::class.java) {
-            it.scd.set(extension.scd)
-            it.scdAutoUpdate.set(extension.scdAutoUpdate)
+        // The swift-sdk backend never runs scd, so leave resolveScdTool (which
+        // installs scd with the macOS `installer`) and the scdFile wiring out.
+        if (SwiftBackend.of(project) == SwiftBackend.SCD) {
+            resolveScdTask = project.tasks.register("resolveScdTool", ResolveScdToolTask::class.java) {
+                it.scd.set(extension.scd)
+                it.scdAutoUpdate.set(extension.scdAutoUpdate)
+            }
         }
 
         registerBridgingTask(project, extension)

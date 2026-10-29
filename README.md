@@ -74,6 +74,35 @@ swiftpm {
 
 **Note:** both plugins only support dynamic library products
 
+#### Building Android without scd (Linux)
+
+scd runs on macOS only. Elsewhere the Android plugin builds with plain
+`swift build --swift-sdk <arch>-unknown-linux-android24` against an installed Swift
+SDK for Android, such as SCADE's `scade-swift-android-sdk`
+(`swift sdk install <bundle>.artifactbundle.zip`). The backend is picked by host:
+
+- macOS: `scd` (unchanged).
+- anything else: `swift-sdk`.
+- `-Pswiftpm.backend=scd|swift-sdk` overrides it.
+- `-Pswiftpm.androidApiLevel=<n>` changes the triple's API level (default 24, the
+  only one SCADE's SDK declares).
+
+It produces what `scd archive` does, so consumers need no changes:
+`lib/<abi>/lib<product>.so`, any `--embed-library` files, the NDK's
+`libc++_shared.so` (plus the Swift runtime libs unless `--static-swift-stdlib`),
+and `SwiftFoundation.jar`. The one difference is Java: scd compiles the `.java`
+resources of Swift targets (swift4j's runtime) into per-target jars, while this
+backend has `generateBridging` copy them beside the generated bridging sources for
+the app to compile.
+
+`scdOptions` are translated per ABI:
+- `-Xswiftc`, `-Xcc`, `-Xcxx`, `-Xlinker`, and their `:android-<abi>` scoped forms,
+  go into a per-ABI toolset, so they reach the Android target but not host
+  builds such as macros.
+- `--embed-library[:android-<abi>]=<file>` copies the file next to the library.
+- `--static-swift-stdlib` passes through.
+- Any other option fails the build rather than being dropped.
+
 ## Development
 
 ### Local Installation

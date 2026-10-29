@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 import io.scade.gradle.plugins.spm.SpmGradlePlugin
 import io.scade.gradle.plugins.spm.SpmGradlePluginExtension
+import io.scade.gradle.plugins.spm.SwiftBackend
 import io.scade.gradle.plugins.spm.TargetPlatform
 import io.scade.gradle.plugins.spm.tasks.GenerateBridgingTask
 import io.scade.gradle.plugins.spm.tasks.AssembleSwiftPackageTask
@@ -108,8 +109,10 @@ class SpmGradleAndroidPlugin @Inject constructor (
     override fun configureBridgingTask(project: Project, task: TaskProvider<GenerateBridgingTask>) {
         task.get().extraArguments.add("--generate-android-view-models")
 
-        // Disable copying as scd packs all sources into Jars while building a project
-        task.get().copyJavaSources.set(false)
+        // scd packs the Java sources Swift targets carry into jars while building, so
+        // copying them too would duplicate the classes. The swift-sdk backend makes no
+        // jars, so there the copies are the only source of those classes.
+        task.get().copyJavaSources.set(SwiftBackend.of(project) == SwiftBackend.SWIFT_SDK)
 
         project.plugins.withType(AppPlugin::class.java) {
             val androidComponents =
