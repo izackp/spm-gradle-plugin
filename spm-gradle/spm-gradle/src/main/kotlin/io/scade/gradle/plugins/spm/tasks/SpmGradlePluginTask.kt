@@ -60,16 +60,28 @@ abstract class SpmGradlePluginTask : DefaultTask() {
         }
     }
 
+    /**
+     * The command that runs swift: `swift`, or the words of `-Pswiftpm.swiftCommand`,
+     * e.g. a launcher that ends in `swift` and adds its own options. Not an input:
+     * it changes how swift runs, not what it builds.
+     */
+    @get:Internal
+    val swiftCommand: List<String>
+        get() = project.findProperty("swiftpm.swiftCommand")?.toString()
+            ?.trim()?.split(Regex("\\s+"))?.filter { it.isNotEmpty() }
+            ?.ifEmpty { null }
+            ?: listOf("swift")
+
     fun swift(vararg args: Any): ExecResult {
         return project.exec {
-            it.commandLine("swift", *args)
+            it.commandLine(*swiftCommand.toTypedArray(), *args)
         }
     }
 
     fun<T> swift(vararg args: Any, captureOutput: (ExecResult, String) -> T): T {
         val stdout = ByteArrayOutputStream()
         val res = project.exec {
-            it.commandLine("swift", *args)
+            it.commandLine(*swiftCommand.toTypedArray(), *args)
             it.standardOutput = stdout
         }
         return captureOutput(res, stdout.toString())

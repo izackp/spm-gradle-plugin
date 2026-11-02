@@ -58,10 +58,18 @@ abstract class GenerateBridgingTask() : SpmGradlePluginTask() {
             return sibling
         }
 
+    // Prebuilt swift-syntax is off here: with Swift 6.2 a host tool mixing it with
+    // swift-syntax built from source broke. Swift 6.3's SwiftPM uses it only when
+    // every host module can, and `-Pswiftpm.prebuilts=true` turns it back on.
+    @get:Internal
+    val prebuiltsArguments: List<String>
+        get() = if (project.findProperty("swiftpm.prebuilts")?.toString() == "true") emptyList()
+            else listOf("--disable-experimental-prebuilts")
+
     private val pluginAvailable: Boolean
         get() {
             return swift("package",
-                "--disable-experimental-prebuilts",
+                *prebuiltsArguments.toTypedArray(),
                 "--scratch-path", bridgingScratchPath,
                 "--package-path", packageDir,
                 "plugin", "--list"
@@ -73,9 +81,9 @@ abstract class GenerateBridgingTask() : SpmGradlePluginTask() {
     @TaskAction
     fun run() {
         if (pluginAvailable) {
-            val args = mutableListOf(
+            val args = mutableListOf<Any>(
                 "package",
-                "--disable-experimental-prebuilts",
+                *prebuiltsArguments.toTypedArray(),
                 "--scratch-path", bridgingScratchPath,
                 "--package-path", packageDir,
                 "plugin", "generate-java-bridging",
