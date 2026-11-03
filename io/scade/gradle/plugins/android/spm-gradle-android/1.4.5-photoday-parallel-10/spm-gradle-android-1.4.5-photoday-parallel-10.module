@@ -1,0 +1,143 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.scade.gradle.plugins.android",
+    "module": "spm-gradle-android",
+    "version": "1.4.5-photoday-parallel-10",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.9"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.0.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "spm-gradle-android-1.4.5-photoday-parallel-10.jar",
+          "url": "spm-gradle-android-1.4.5-photoday-parallel-10.jar",
+          "size": 29691,
+          "sha512": "04f10bb1feb71b6c9d4134856eb2354dde55a32fc7806ae221640dd24b6858c2a10e916a278d7f1e02db450b584414fd1e88b25429020cd3a06e5fcebb598a7f",
+          "sha256": "9034dd477808a36b011ba506f94b9c0b1ad326df0bc9aa83dc66a3e55704e200",
+          "sha1": "6c8b81457befd828fa256f830add67675a3f8fd9",
+          "md5": "b88f153eb72458f521ffba1e23016cfa"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-gradle-plugin",
+          "version": {
+            "requires": "2.0.10"
+          }
+        },
+        {
+          "group": "com.android.tools.ddms",
+          "module": "ddmlib",
+          "version": {
+            "requires": "31.6.0"
+          }
+        },
+        {
+          "group": "io.scade.gradle.plugins",
+          "module": "spm-gradle",
+          "version": {
+            "requires": "1.4.5-photoday-parallel-10"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.0.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "spm-gradle-android-1.4.5-photoday-parallel-10.jar",
+          "url": "spm-gradle-android-1.4.5-photoday-parallel-10.jar",
+          "size": 29691,
+          "sha512": "04f10bb1feb71b6c9d4134856eb2354dde55a32fc7806ae221640dd24b6858c2a10e916a278d7f1e02db450b584414fd1e88b25429020cd3a06e5fcebb598a7f",
+          "sha256": "9034dd477808a36b011ba506f94b9c0b1ad326df0bc9aa83dc66a3e55704e200",
+          "sha1": "6c8b81457befd828fa256f830add67675a3f8fd9",
+          "md5": "b88f153eb72458f521ffba1e23016cfa"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "spm-gradle-android-1.4.5-photoday-parallel-10-javadoc.jar",
+          "url": "spm-gradle-android-1.4.5-photoday-parallel-10-javadoc.jar",
+          "size": 261,
+          "sha512": "1bec68996f03f35528ab9153920822dbf876c3e1fa9234549594fbc90b5c3fac622dacbb90843ce4c685ab5536ca6a0d92fde52bd1fd2c675b6d516e242ac051",
+          "sha256": "63f14a8385921bf3cbc9ba5b9398b1b540236aa2c1e09a790b2bf3c27e67ee37",
+          "sha1": "ddc2f96f04f61c386043606f7ca1e27c2cc149c4",
+          "md5": "58b1b66b9c27c712dae3b37f0f771216"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "spm-gradle-android-1.4.5-photoday-parallel-10-sources.jar",
+          "url": "spm-gradle-android-1.4.5-photoday-parallel-10-sources.jar",
+          "size": 8673,
+          "sha512": "8446684938bb551eb57312e85e11548ee8155c557a625871cb183a10f7ccd4e75a5641b649e25e9e6b31115f90fa6def47a4eec32d8a28bd1b0f76f2d1ef7f9e",
+          "sha256": "d99dd0d16181325838da4af83204543c8cee97c4dc459c2b23fd2816ace47d77",
+          "sha1": "51211e476956349bcd8aee67c736fde6c767cde5",
+          "md5": "ecf23dcd5f0aa50ce31991aae639925c"
+        }
+      ]
+    }
+  ]
+}
