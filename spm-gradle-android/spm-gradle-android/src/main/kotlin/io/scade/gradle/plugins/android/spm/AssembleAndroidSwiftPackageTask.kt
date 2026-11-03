@@ -135,18 +135,23 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
             val sdk = SwiftSdkTarget.find(triple)
             val opts = SwiftSdkOptions.translate(scdOptions.get(), "android-$abi")
             val toolset = File(toolsetDir, "$abi.json").apply { writeText(opts.toolsetJson()) }
+            // A release build gives every host-tool compile (swift-syntax, the macros)
+            // the destination's swift-version file as an input, so ABIs sharing one
+            // scratch rebuild all the host tools on every pass, each undoing the last.
+            // Debug's host tools don't depend on it, and keep the shared scratch.
+            val scratch = if (configuration == "release") File("$buildDirPath-$abi") else buildDirPath
 
             project.logger.lifecycle("[swift-sdk] building ${product.get()} for $triple ($configuration)")
             swift("build",
                 "--package-path", packageDir,
-                "--scratch-path", buildDirPath,
+                "--scratch-path", scratch,
                 "--swift-sdk", triple,
                 "--toolset", toolset,
                 "-c", configuration,
                 "--product", product.get(),
                 *opts.buildArgs.toTypedArray())
 
-            val binDir = File(buildDirPath, "$triple/$configuration")
+            val binDir = File(scratch, "$triple/$configuration")
             val built = File(binDir, "lib${product.get()}.so")
             if (!built.isFile) {
                 throw GradleException("swift build reported success but $built does not exist")
