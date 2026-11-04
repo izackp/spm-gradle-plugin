@@ -10,10 +10,10 @@ import java.io.File
  * `scdOptions` rewritten for one `swift build --swift-sdk` invocation.
  *
  * scd scopes options to a platform with a suffix (`-Xlinker:android-arm64-v8a`), and
- * applies its unscoped `-X` options to the target only. `swift build -Xswiftc` and
- * friends also reach host builds (macros, plugins), where a target-only flag such as
- * `-resource-dir` breaks them. So every `-X` option goes into a toolset, which
- * SwiftPM applies to the target triple alone.
+ * its options must reach the target only: a target-only flag such as `-resource-dir`
+ * breaks the host builds (macros, plugins). Which channel stays target-only depends on
+ * SwiftPM: before 6.3 a toolset also reaches host builds and `-Xswiftc` and friends do
+ * not (scd passes them that way); from 6.3 the reverse. [targetOnlyArgs] picks.
  */
 class SwiftSdkOptions(
     val buildArgs: List<String>,
@@ -24,6 +24,20 @@ class SwiftSdkOptions(
     val embedLibraries: List<File>,
     val staticStdlib: Boolean,
 ) {
+    fun plus(swiftc: List<String> = emptyList(), cc: List<String> = emptyList(),
+             cxx: List<String> = emptyList(), buildArgs: List<String> = emptyList()) =
+        SwiftSdkOptions(this.buildArgs + buildArgs, this.swiftc + swiftc, this.cc + cc, this.cxx + cxx,
+            linker, embedLibraries, staticStdlib)
+
+    fun targetOnlyArgs(swiftpmVersion: KotlinVersion, toolsetFile: File): List<String> {
+        if (swiftpmVersion >= KotlinVersion(6, 3)) {
+            toolsetFile.writeText(toolsetJson())
+            return listOf("--toolset", toolsetFile.absolutePath)
+        }
+        return swiftc.flatMap { listOf("-Xswiftc", it) } + cc.flatMap { listOf("-Xcc", it) } +
+            cxx.flatMap { listOf("-Xcxx", it) } + linker.flatMap { listOf("-Xlinker", it) }
+    }
+
     /** Toolset JSON carrying the target-only options. */
     fun toolsetJson(): String {
         val tools = linkedMapOf<String, Any>("schemaVersion" to "1.0")
@@ -127,7 +141,8 @@ class SwiftSdkTarget(val triple: String, val swiftResources: File) {
                     val triples = doc?.get("targetTriples") as? Map<String, Map<String, Any?>>
                     val entry = triples?.get(triple) ?: return@mapNotNull null
                     val resources = entry["swiftResourcesPath"] as? String ?: return@mapNotNull null
-                    SwiftSdkTarget(triple, File(json.parentFile, resources).canonicalFile)
+                    val path = File(resources).takeIf { it.isAbsolute } ?: File(json.parentFile, resources)
+                    SwiftSdkTarget(triple, path.canonicalFile)
                 }.toList()
             }
             return when (matches.size) {

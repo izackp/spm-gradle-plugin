@@ -127,14 +127,26 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
         val libRoot = outputDirectory.get().asFile
         val toolsetDir = File(temporaryDir, "toolsets").apply { mkdirs() }
         var foundationJar: File? = null
+        val swiftpmVersion = swiftpmVersion()
+        val ndkBin = ndkBinDir()
+        val release = configuration == "release"
+
+        libRoot.listFiles { f -> f.isFile && f.name.endsWith(".jar") }?.forEach { it.delete() }
 
         for (abi in effectiveAndroidArchs()) {
             val arch = swiftArchByAbi[abi]
                 ?: throw GradleException("No Swift architecture for Android ABI $abi")
             val triple = "$arch-unknown-linux-android$apiLevel"
             val sdk = SwiftSdkTarget.find(triple)
-            val opts = SwiftSdkOptions.translate(scdOptions.get(), "android-$abi")
-            val toolset = File(toolsetDir, "$abi.json").apply { writeText(opts.toolsetJson()) }
+            val opts = SwiftSdkOptions.translate(scdOptions.get(), "android-$abi").plus(
+                swiftc = listOf("-Xlinker", "--build-id=sha1", "-Xlinker", "-z,max-page-size=16384") +
+                    (ndkBin?.let { listOf("-tools-directory", it.absolutePath) } ?: emptyList()),
+                cc = listOf("-fPIC"),
+                cxx = listOf("-fPIC"),
+                buildArgs = listOf("--disable-experimental-prebuilts", "--disable-build-manifest-caching") +
+                    (if (release) listOf("-debug-info-format", "none") else emptyList()),
+            )
+            val targetOnly = opts.targetOnlyArgs(swiftpmVersion, File(toolsetDir, "$abi.json"))
             // A release build gives every host-tool compile (swift-syntax, the macros)
             // the destination's swift-version file as an input, so ABIs sharing one
             // scratch rebuild all the host tools on every pass, each undoing the last.
@@ -146,7 +158,7 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
                 "--package-path", packageDir,
                 "--scratch-path", scratch,
                 "--swift-sdk", triple,
-                "--toolset", toolset,
+                *targetOnly.toTypedArray(),
                 "-c", configuration,
                 "--product", product.get(),
                 *opts.buildArgs.toTypedArray())
@@ -170,12 +182,33 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
                     ?.forEach { it.copyTo(File(abiDir, it.name), overwrite = true) }
             }
             ndkLibCxxShared(abi)?.let { it.copyTo(File(abiDir, it.name), overwrite = true) }
+            if (release) {
+                val strip = ndkBin?.let { File(it, "llvm-strip") }?.takeIf { it.isFile }
+                    ?: throw GradleException("No llvm-strip in the NDK at ${ndkPath.orNull?.asFile}")
+                abiDir.listFiles { f -> f.name.endsWith(".so") }?.forEach {
+                    project.exec { e -> e.commandLine(strip.absolutePath, "--strip-all", it.absolutePath) }
+                }
+            }
             foundationJar = foundationJar
                 ?: listOf(File(sdkLibs, "SwiftFoundation.jar"), File(sdk.swiftResources, "android/SwiftFoundation.jar"))
                     .firstOrNull { it.isFile }
+                ?: throw GradleException("No SwiftFoundation.jar in $sdkLibs or ${sdk.swiftResources}/android")
         }
 
         foundationJar?.copyTo(File(libRoot, "SwiftFoundation.jar"), overwrite = true)
+    }
+
+    private fun swiftpmVersion(): KotlinVersion = swift("build", "--version") { _, out ->
+        val m = Regex("""Swift Package Manager - Swift (\d+)\.(\d+)""").find(out)
+            ?: throw GradleException("Cannot read the SwiftPM version from: $out")
+        KotlinVersion(m.groupValues[1].toInt(), m.groupValues[2].toInt())
+    }
+
+    private fun ndkBinDir(): File? {
+        val ndk = ndkPath.orNull?.asFile ?: return null
+        return File(ndk, "toolchains/llvm/prebuilt").listFiles()
+            ?.map { File(it, "bin") }
+            ?.firstOrNull { File(it, "llvm-strip").isFile }
     }
 
     /** The NDK's libc++_shared.so for [abi]; Swift's runtime links it dynamically. */
