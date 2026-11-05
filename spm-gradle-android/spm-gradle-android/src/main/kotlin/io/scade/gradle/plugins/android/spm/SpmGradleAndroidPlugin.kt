@@ -71,36 +71,39 @@ class SpmGradleAndroidPlugin @Inject constructor (
             val androidComponents =
                 project.extensions.getByType(ApplicationAndroidComponentsExtension::class.java)
 
+            val tasksByBuildType = mutableMapOf<String, TaskProvider<out AssembleSwiftPackageTask>>()
+
             androidComponents.onVariants { variant ->
-                registerAssembleTask(project, extension, variant.name, variant.debuggable) { task ->
-                    (task.get() as? AssembleAndroidSwiftPackageTask)?.let {
-                        it.sdkPath.set(androidComponents.sdkComponents.sdkDirectory)
-                        it.ndkPath.set(androidComponents.sdkComponents.ndkDirectory)
-                        it.adbPath.set(androidComponents.sdkComponents.adb)
+                val task = tasksByBuildType.getOrPut(variant.buildType ?: variant.name) {
+                    registerAssembleTask(project, extension, variant.buildType ?: variant.name, variant.debuggable) { task ->
+                        (task.get() as? AssembleAndroidSwiftPackageTask)?.let {
+                            it.sdkPath.set(androidComponents.sdkComponents.sdkDirectory)
+                            it.ndkPath.set(androidComponents.sdkComponents.ndkDirectory)
+                            it.adbPath.set(androidComponents.sdkComponents.adb)
+                        }
+
+                        project.afterEvaluate {
+                            task.get().linkDependencies.set(extension.dependencies.map { deps ->
+                                resolveDependencies(project, deps)
+                            })
+                        }
                     }
-
-                    // AGP requires `addGeneratedSourceDirectory` (not `addStaticSourceDirectory`)
-                    // for task-produced directories. The static variant doesn't wire the task's
-                    // outputDirectory as a producer-side input to mergeJniLibFolders / mergeNativeLibs,
-                    // so adding a new .swift file (which rebuilds lib*.so under build/lib/<arch>/)
-                    // leaves merged_jni_libs intermediates stale → APK ships yesterday's .so.
-                    @Suppress("UNCHECKED_CAST")
-                    val typedTask = task as TaskProvider<AssembleSwiftPackageTask>
-                    variant.sources.jniLibs?.addGeneratedSourceDirectory(typedTask) { it.outputDirectory }
-
-                    project.afterEvaluate {
-                        task.get().linkDependencies.set(extension.dependencies.map { deps ->
-                            resolveDependencies(project, deps)
-                        })
-                    }
-
-
-                    val outputJars = project.provider {
-                        task.get().outputDirectory.asFileTree.matching(PatternSet().include("*.jar"))
-                    }
-
-                    project.dependencies.add("${variant.name}Implementation", project.files(outputJars))
                 }
+
+                // AGP requires `addGeneratedSourceDirectory` (not `addStaticSourceDirectory`)
+                // for task-produced directories. The static variant doesn't wire the task's
+                // outputDirectory as a producer-side input to mergeJniLibFolders / mergeNativeLibs,
+                // so adding a new .swift file (which rebuilds lib*.so under build/lib/<arch>/)
+                // leaves merged_jni_libs intermediates stale → APK ships yesterday's .so.
+                @Suppress("UNCHECKED_CAST")
+                val typedTask = task as TaskProvider<AssembleSwiftPackageTask>
+                variant.sources.jniLibs?.addGeneratedSourceDirectory(typedTask) { it.outputDirectory }
+
+                val outputJars = project.provider {
+                    task.get().outputDirectory.asFileTree.matching(PatternSet().include("*.jar"))
+                }
+
+                project.dependencies.add("${variant.name}Implementation", project.files(outputJars))
             }
         }
     }
