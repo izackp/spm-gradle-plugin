@@ -1,6 +1,7 @@
 package io.scade.gradle.plugins.android.spm
 
 import io.scade.gradle.plugins.spm.TargetPlatform
+import io.scade.gradle.plugins.spm.installSwiftReleaseToolchain
 import io.scade.gradle.plugins.spm.scadeSwiftSdkDir
 import io.scade.gradle.plugins.spm.scadeSwiftSdkSwiftVersion
 import io.scade.gradle.plugins.spm.swiftAndroidToolchainDir
@@ -17,6 +18,7 @@ import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
+import org.gradle.internal.os.OperatingSystem
 
 
 private val swiftArchByAbi = mapOf(
@@ -153,13 +155,19 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
             swiftBuild = listOf(File(scdFile.asFile.get().parentFile.parentFile, "lib/swift-build").absolutePath,
                 "--toolchain", scadeToolchain.absolutePath, "--swift-sdks-path", sdks.absolutePath)
             sdkRoots = listOf(sdks)
-        } else if (scadeSdk != null) {
+        } else if (scadeSdk != null && OperatingSystem.current().isMacOsX) {
             val (sdk, hostToolchain) = scadeSdk
             project.delete(sdks)
             ScadeSwiftSdk.write(sdks, sdk, ndkOrThrow(sdk), triples())
             swiftBuild = listOf(File(hostToolchain, "usr/bin/swift-build").absolutePath,
                 "--swift-sdks-path", sdks.absolutePath)
             sdkRoots = listOf(sdks)
+        } else if (scadeSdk != null) {
+            // Linux: the bundle's own Linux-host description, as installed and set up,
+            // built with the pinned toolchain instead of PATH's swift.
+            val (_, hostToolchain) = scadeSdk
+            swiftBuild = listOf(File(hostToolchain, "usr/bin/swift-build").absolutePath)
+            sdkRoots = null
         } else {
             swiftBuild = swiftCommand + "build"
             sdkRoots = null
@@ -263,19 +271,31 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
     }
 
     /**
-     * The pinned SCADE Swift SDK scd installed (`swiftpm { sdkVersion }`) and the swift.org
-     * toolchain of the Swift release that built it, which the build runs on.
+     * The pinned SCADE Swift SDK (`swiftpm { sdkVersion }`) and the swift.org toolchain of
+     * the Swift release that built it, which the build runs on.
+     *
+     * On macOS resolveScdTool installs both. On Linux the SDK is the bundle `swift sdk
+     * install` put in ~/.swiftpm/swift-sdks (the app's own script installs and sets it
+     * up), and the toolchain is installed here when missing, so the build never runs
+     * whatever `swift` happens to be on PATH.
      */
     private fun scadeSdk(): Pair<File, File>? {
         if (project.findProperty("swiftpm.swiftCommand") != null) return null
         val version = sdkVersion.orNull ?: return null
-        if (!scdFile.isPresent) return null
+        val mac = OperatingSystem.current().isMacOsX
+        if (mac && !scdFile.isPresent) return null
         val sdk = scadeSwiftSdkDir(version)
         val swift = scadeSwiftSdkSwiftVersion(sdk)
-            ?: throw GradleException("swiftpm.sdkVersion $version: no SCADE Swift SDK at $sdk")
-        val hostToolchain = swiftReleaseToolchainDir(swift)
-            ?: throw GradleException("swiftpm.sdkVersion $version: no Swift $swift toolchain " +
-                "(swift-$swift-RELEASE.xctoolchain) in ~/Library/Developer/Toolchains")
+            ?: throw GradleException("swiftpm.sdkVersion $version: no SCADE Swift SDK at $sdk" +
+                (if (mac) "" else ". Install it with `swift sdk install` and set it up for the NDK"))
+        val hostToolchain = if (mac) {
+            swiftReleaseToolchainDir(swift)
+                ?: throw GradleException("swiftpm.sdkVersion $version: no Swift $swift toolchain " +
+                    "(swift-$swift-RELEASE.xctoolchain) in ~/Library/Developer/Toolchains")
+        } else {
+            installSwiftReleaseToolchain(swift, project.findProperty("swiftpm.linuxSwiftPlatform")?.toString(),
+                File(temporaryDir, "swift-download"), project.logger)
+        }
         return sdk to hostToolchain
     }
 
