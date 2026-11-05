@@ -72,6 +72,8 @@ abstract class SpmGradlePluginExtension @Inject constructor(
     abstract val javaVersion: Property<Int>
     abstract val scd: RegularFileProperty
     abstract val scdAutoUpdate: Property<Boolean>
+    abstract val scdVersion: Property<String>
+    abstract val toolchainVersion: Property<String>
     abstract val scdOptions: ListProperty<String>
 
     val dependencies: ListProperty<Dependency> = objects.listProperty(Dependency::class.java)

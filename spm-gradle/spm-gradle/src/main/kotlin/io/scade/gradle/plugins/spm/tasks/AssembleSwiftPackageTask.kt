@@ -34,6 +34,9 @@ abstract class AssembleSwiftPackageTask() : SpmGradlePluginTask() {
     @Internal
     val scdOptions: ListProperty<String> = project.objects.listProperty(String::class.java)
 
+    @Internal
+    val toolchainVersion: Property<String> = project.objects.property(String::class.java)
+
     @OutputDirectory
     val outputDirectory: DirectoryProperty = project.objects.directoryProperty()
 

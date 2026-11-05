@@ -1,5 +1,6 @@
 package io.scade.gradle.plugins.spm.tasks
 
+import io.scade.gradle.plugins.spm.swiftAndroidToolchainDir
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.RegularFile
 import org.gradle.api.file.RegularFileProperty
@@ -21,6 +22,16 @@ abstract class ResolveScdToolTask() : DefaultTask() {
     @Input
     val scdAutoUpdate: Property<Boolean> = project.objects.property(Boolean::class.java)
 
+    /** The scd version to install, replacing any other; unset follows the latest. */
+    @Optional
+    @Input
+    val scdVersion: Property<String> = project.objects.property(String::class.java)
+
+    /** The Swift for Android toolchain version to install; unset installs the latest. */
+    @Optional
+    @Input
+    val toolchainVersion: Property<String> = project.objects.property(String::class.java)
+
     @OutputFile
     val scdFile: RegularFileProperty = project.objects.fileProperty()
 
@@ -34,8 +45,23 @@ abstract class ResolveScdToolTask() : DefaultTask() {
     fun run() {
         val scd = scd.orNull?.asFile
 
+        val pinned = scdVersion.orNull?.let(::parseVersion)
+
         if (scd != null) {
             scdFile.set(scd)
+
+        } else if (pinned != null) {
+            val cur = scdFile.asFile.get().takeIf { it.exists() }?.let(::getInstalledVersion)
+            if (cur != pinned) {
+                project.logger.lifecycle("Installing Scade Build Tool ${pinned.versionString()}" +
+                    (cur?.let { " in place of ${it.versionString()}" } ?: "") + " ...")
+                downloadAndInstall(pinned)
+                val installed = scdFile.asFile.get().takeIf { it.exists() }?.let(::getInstalledVersion)
+                if (installed != pinned) {
+                    throw RuntimeException("Installed Scade Build Tool ${pinned.versionString()}, but " +
+                        "${scdFile.asFile.get()} reports ${installed?.versionString()}")
+                }
+            }
 
         } else if (scdFile.asFile.get().exists()) {
             val cur = getInstalledVersion(scdFile.asFile.get())
@@ -66,12 +92,28 @@ abstract class ResolveScdToolTask() : DefaultTask() {
 
         } else {
             project.logger.lifecycle("Scade Build Tool is ready to use.")
-            project.logger.lifecycle("Check and update Swift for Android toolchain ...")
-            project.exec {
-                it.commandLine(scdFile.asFile.get(), "toolchain", "install-latest")
+            val toolchain = toolchainVersion.orNull
+            if (toolchain == null) {
+                project.logger.lifecycle("Check and update Swift for Android toolchain ...")
+                project.exec {
+                    it.commandLine(scdFile.asFile.get(), "toolchain", "install-latest")
+                }
+            } else if (!swiftAndroidToolchainDir(toolchain).isDirectory) {
+                project.logger.lifecycle("Installing Swift for Android toolchain $toolchain ...")
+                project.exec {
+                    it.commandLine(scdFile.asFile.get(), "toolchain", "install", "--version", toolchain)
+                }
             }
         }
 
+    }
+
+    private fun parseVersion(version: String): Triple<Int, Int, Int> {
+        val parts = version.split('.').map { it.toIntOrNull() }
+        if (parts.size != 3 || parts.any { it == null }) {
+            throw RuntimeException("swiftpm.scdVersion '$version' is not a major.minor.patch version")
+        }
+        return Triple(parts[0]!!, parts[1]!!, parts[2]!!)
     }
 
     private fun downloadAndInstall(version: Triple<Int, Int, Int>?) {

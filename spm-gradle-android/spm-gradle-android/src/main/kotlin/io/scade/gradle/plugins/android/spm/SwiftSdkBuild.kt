@@ -133,8 +133,8 @@ class SwiftSdkTarget(val triple: String, val swiftResources: File) {
          * --swift-sdk <triple>` does. SwiftPM itself prints no machine-readable form of
          * this, so read the bundles' swift-sdk.json files directly.
          */
-        fun find(triple: String): SwiftSdkTarget {
-            val matches = sdkRoots().flatMap { root ->
+        fun find(triple: String, roots: List<File> = sdkRoots()): SwiftSdkTarget {
+            val matches = roots.flatMap { root ->
                 root.walkTopDown().maxDepth(4).filter { it.name == "swift-sdk.json" }.mapNotNull { json ->
                     @Suppress("UNCHECKED_CAST")
                     val doc = JsonSlurper().parse(json) as? Map<String, Any?>
@@ -147,7 +147,7 @@ class SwiftSdkTarget(val triple: String, val swiftResources: File) {
             }
             return when (matches.size) {
                 1 -> matches.single()
-                0 -> throw GradleException("No installed Swift SDK targets $triple (searched ${sdkRoots()}). " +
+                0 -> throw GradleException("No installed Swift SDK targets $triple (searched $roots). " +
                     "Install SCADE's scade-swift-android-sdk with `swift sdk install`.")
                 else -> throw GradleException("Several installed Swift SDKs target $triple: " +
                     matches.joinToString { it.swiftResources.path } + ". swift build cannot pick between them either.")

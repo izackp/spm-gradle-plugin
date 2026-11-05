@@ -1,6 +1,7 @@
 package io.scade.gradle.plugins.android.spm
 
 import io.scade.gradle.plugins.spm.TargetPlatform
+import io.scade.gradle.plugins.spm.swiftAndroidToolchainDir
 import io.scade.gradle.plugins.spm.tasks.AssembleSwiftPackageTask
 import io.scade.gradle.plugins.spm.tasks.PerPlatformInvocation
 
@@ -127,17 +128,38 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
         val libRoot = outputDirectory.get().asFile
         val toolsetDir = File(temporaryDir, "toolsets").apply { mkdirs() }
         var foundationJar: File? = null
-        val swiftpmVersion = swiftpmVersion()
+        val abis = effectiveAndroidArchs()
+        val tripleOf = { arch: String -> "$arch-unknown-linux-android$apiLevel" }
+        val scadeToolchain = scadeToolchain()
+        val sdkRoots: List<File>?
+        val swiftBuild: List<String>
+        if (scadeToolchain != null) {
+            val sdks = File(temporaryDir, "swift-sdks")
+            project.delete(sdks)
+            val ndk = ndkPath.orNull?.asFile
+                ?: throw GradleException("Building with the Swift for Android toolchain at $scadeToolchain needs the Android NDK")
+            ScadeToolchainSdk.write(sdks, scadeToolchain, ndk, abis.associate { abi ->
+                val arch = swiftArchByAbi[abi] ?: throw GradleException("No Swift architecture for Android ABI $abi")
+                arch to tripleOf(arch)
+            })
+            swiftBuild = listOf(File(scdFile.asFile.get().parentFile.parentFile, "lib/swift-build").absolutePath,
+                "--toolchain", scadeToolchain.absolutePath, "--swift-sdks-path", sdks.absolutePath)
+            sdkRoots = listOf(sdks)
+        } else {
+            swiftBuild = swiftCommand + "build"
+            sdkRoots = null
+        }
+        val swiftpmVersion = swiftpmVersion(swiftBuild)
         val ndkBin = ndkBinDir()
         val release = configuration == "release"
 
         libRoot.listFiles { f -> f.isFile && f.name.endsWith(".jar") }?.forEach { it.delete() }
 
-        for (abi in effectiveAndroidArchs()) {
+        for (abi in abis) {
             val arch = swiftArchByAbi[abi]
                 ?: throw GradleException("No Swift architecture for Android ABI $abi")
-            val triple = "$arch-unknown-linux-android$apiLevel"
-            val sdk = SwiftSdkTarget.find(triple)
+            val triple = tripleOf(arch)
+            val sdk = sdkRoots?.let { SwiftSdkTarget.find(triple, it) } ?: SwiftSdkTarget.find(triple)
             val opts = SwiftSdkOptions.translate(scdOptions.get(), "android-$abi").plus(
                 swiftc = listOf("-Xlinker", "--build-id=sha1", "-Xlinker", "-z,max-page-size=16384") +
                     (ndkBin?.let { listOf("-tools-directory", it.absolutePath) } ?: emptyList()),
@@ -154,14 +176,14 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
             val scratch = if (configuration == "release") File("$buildDirPath-$abi") else buildDirPath
 
             project.logger.lifecycle("[swift-sdk] building ${product.get()} for $triple ($configuration)")
-            swift("build",
+            project.exec { e -> e.commandLine(*swiftBuild.toTypedArray(),
                 "--package-path", packageDir,
                 "--scratch-path", scratch,
                 "--swift-sdk", triple,
                 *targetOnly.toTypedArray(),
                 "-c", configuration,
                 "--product", product.get(),
-                *opts.buildArgs.toTypedArray())
+                *opts.buildArgs.toTypedArray()) }
 
             val binDir = File(scratch, "$triple/$configuration")
             val built = File(binDir, "lib${product.get()}.so")
@@ -198,10 +220,29 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
         foundationJar?.copyTo(File(libRoot, "SwiftFoundation.jar"), overwrite = true)
     }
 
-    private fun swiftpmVersion(): KotlinVersion = swift("build", "--version") { _, out ->
+    private fun swiftpmVersion(swiftBuild: List<String>): KotlinVersion {
+        val stdout = java.io.ByteArrayOutputStream()
+        project.exec { it.commandLine(*swiftBuild.toTypedArray(), "--version"); it.standardOutput = stdout }
+        val out = stdout.toString()
         val m = Regex("""Swift Package Manager - Swift (\d+)\.(\d+)""").find(out)
             ?: throw GradleException("Cannot read the SwiftPM version from: $out")
-        KotlinVersion(m.groupValues[1].toInt(), m.groupValues[2].toInt())
+        return KotlinVersion(m.groupValues[1].toInt(), m.groupValues[2].toInt())
+    }
+
+    /**
+     * The pinned Swift for Android toolchain scd installed (`swiftpm { toolchainVersion }`),
+     * which the build then runs on instead of an installed Swift SDK. Unset, or overridden
+     * by -Pswiftpm.swiftCommand, it builds with `swift build` as before.
+     */
+    private fun scadeToolchain(): File? {
+        if (project.findProperty("swiftpm.swiftCommand") != null) return null
+        val version = toolchainVersion.orNull ?: return null
+        if (!scdFile.isPresent) return null
+        val dir = swiftAndroidToolchainDir(version)
+        if (!ScadeToolchainSdk.isToolchain(dir)) {
+            throw GradleException("swiftpm.toolchainVersion $version: no Swift for Android toolchain at $dir")
+        }
+        return dir
     }
 
     private fun ndkBinDir(): File? {
