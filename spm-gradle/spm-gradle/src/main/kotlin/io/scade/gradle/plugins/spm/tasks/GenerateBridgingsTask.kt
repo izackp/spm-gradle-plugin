@@ -101,6 +101,8 @@ abstract class GenerateBridgingTask() : SpmGradlePluginTask() {
     @TaskAction
     fun run() {
         cleanIfHostSwiftChanged()
+        pluginOutputs(bridgingScratchPath).deleteRecursively()
+        pluginOutputs(buildDirPath).deleteRecursively()
         if (pluginAvailable) {
             val args = mutableListOf<Any>(
                 "package",
@@ -122,6 +124,9 @@ abstract class GenerateBridgingTask() : SpmGradlePluginTask() {
         }
     }
 
+    private fun pluginOutputs(scratch: java.io.File) =
+        java.io.File(scratch, "plugins/generate-java-bridging/outputs")
+
     /**
      * Mirror the bridging-scratch plugin outputs into the main scratch dir.
      * scd archive's own swift-build expects to find plugin outputs at
@@ -130,9 +135,9 @@ abstract class GenerateBridgingTask() : SpmGradlePluginTask() {
      * contamination), so copy the output tree post-hoc.
      */
     private fun mirrorPluginOutputs() {
-        val src = java.io.File(bridgingScratchPath, "plugins/generate-java-bridging/outputs")
+        val src = pluginOutputs(bridgingScratchPath)
         if (!src.exists()) return
-        val dst = java.io.File(buildDirPath, "plugins/generate-java-bridging/outputs")
+        val dst = pluginOutputs(buildDirPath)
         dst.parentFile.mkdirs()
         src.copyRecursively(dst, overwrite = true)
     }
