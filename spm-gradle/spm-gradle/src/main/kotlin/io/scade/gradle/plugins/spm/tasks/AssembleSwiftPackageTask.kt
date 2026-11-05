@@ -108,6 +108,7 @@ abstract class AssembleSwiftPackageTask() : SpmGradlePluginTask() {
         val productName = product.get()
         val packagePath = packageDir.absolutePath
         val scdOpts = scdOptions.get()
+        val env = toolEnvironment
 
         val executor = Executors.newFixedThreadPool(invocations.size)
         val perPlatformOutputs = mutableMapOf<String, File>()
@@ -141,6 +142,7 @@ abstract class AssembleSwiftPackageTask() : SpmGradlePluginTask() {
                     val pb = ProcessBuilder(cmd)
                         .redirectErrorStream(true)
                         .redirectOutput(logFile)
+                    pb.environment().putAll(env)
                     val proc = pb.start()
                     val exit = proc.waitFor()
                     if (exit != 0) {

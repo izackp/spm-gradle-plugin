@@ -176,14 +176,14 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
             val scratch = if (configuration == "release") File("$buildDirPath-$abi") else buildDirPath
 
             project.logger.lifecycle("[swift-sdk] building ${product.get()} for $triple ($configuration)")
-            project.exec { e -> e.commandLine(*swiftBuild.toTypedArray(),
+            project.exec { e -> execTool(e, swiftBuild + listOf(
                 "--package-path", packageDir,
                 "--scratch-path", scratch,
                 "--swift-sdk", triple,
                 *targetOnly.toTypedArray(),
                 "-c", configuration,
                 "--product", product.get(),
-                *opts.buildArgs.toTypedArray()) }
+                *opts.buildArgs.toTypedArray())) }
 
             val binDir = File(scratch, "$triple/$configuration")
             val built = File(binDir, "lib${product.get()}.so")
@@ -224,7 +224,7 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
 
     private fun swiftpmVersion(swiftBuild: List<String>): KotlinVersion {
         val stdout = java.io.ByteArrayOutputStream()
-        project.exec { it.commandLine(*swiftBuild.toTypedArray(), "--version"); it.standardOutput = stdout }
+        project.exec { execTool(it, swiftBuild + "--version"); it.standardOutput = stdout }
         val out = stdout.toString()
         val m = Regex("""Swift Package Manager - Swift (\d+)\.(\d+)""").find(out)
             ?: throw GradleException("Cannot read the SwiftPM version from: $out")

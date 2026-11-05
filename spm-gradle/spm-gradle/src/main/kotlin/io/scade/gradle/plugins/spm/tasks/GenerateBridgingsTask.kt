@@ -78,8 +78,29 @@ abstract class GenerateBridgingTask() : SpmGradlePluginTask() {
             }
         }
 
+    /**
+     * Host tools (swift-syntax, the macros) built by one Swift cannot be imported by
+     * another, and SwiftPM does not rebuild them when the compiler changes: switching
+     * Xcode failed with `module compiled with Swift X cannot be imported by the Swift
+     * Y compiler`. Record which Swift built them, in the host build dir so a copy of
+     * that dir carries it too, and clean the scratch when it differs or is unknown.
+     */
+    private fun cleanIfHostSwiftChanged() {
+        val version = swift("--version") { _, out -> out.trim() }
+        val hostArch = if (System.getProperty("os.arch") == "aarch64") "arm64" else "x86_64"
+        val hostBuild = java.io.File(bridgingScratchPath, "$hostArch-apple-macosx/debug")
+        val stamp = java.io.File(hostBuild, ".host-swift-version")
+        if (hostBuild.isDirectory && (!stamp.isFile || stamp.readText() != version)) {
+            logger.lifecycle("[swiftpm] host tools in $bridgingScratchPath were built by another Swift; cleaning")
+            swift("package", "--scratch-path", bridgingScratchPath, "--package-path", packageDir, "clean")
+        }
+        hostBuild.mkdirs()
+        stamp.writeText(version)
+    }
+
     @TaskAction
     fun run() {
+        cleanIfHostSwiftChanged()
         if (pluginAvailable) {
             val args = mutableListOf<Any>(
                 "package",

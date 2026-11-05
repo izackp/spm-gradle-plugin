@@ -101,6 +101,7 @@ open class SpmGradlePlugin @Inject constructor (objects: ObjectFactory)
             it.assembleDebug.set(debuggable)
             it.scdOptions.set(extension.scdOptions)
             it.toolchainVersion.set(extension.toolchainVersion)
+            it.developerDir.set(extension.developerDir)
 
             // Per configuration, because Debug and Release produce different
             // binaries and previously archived to the same `<build>/lib`: whichever
@@ -159,6 +160,7 @@ open class SpmGradlePlugin @Inject constructor (objects: ObjectFactory)
             it.path.set(extension.path)
             it.product.set(extension.product)
             it.javaVersion.set(extension.javaVersion)
+            it.developerDir.set(extension.developerDir)
         }
 
         configureBridgingTask(project, task)
