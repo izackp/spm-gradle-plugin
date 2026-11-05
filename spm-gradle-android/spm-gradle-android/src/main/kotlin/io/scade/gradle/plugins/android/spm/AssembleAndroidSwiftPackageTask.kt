@@ -202,6 +202,8 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
                 // Dynamic runtime: ship every runtime lib except the test frameworks.
                 sdkLibs.listFiles { f -> f.name.endsWith(".so") && testLibs.none { f.name.contains(it) } }
                     ?.forEach { it.copyTo(File(abiDir, it.name), overwrite = true) }
+            } else {
+                sdk.staticRuntimeLibs(arch).forEach { it.copyTo(File(abiDir, it.name), overwrite = true) }
             }
             ndkLibCxxShared(abi)?.let { it.copyTo(File(abiDir, it.name), overwrite = true) }
             if (release) {

@@ -109,13 +109,23 @@ class SwiftSdkOptions(
 
 
 /** An installed Swift SDK's target-specific paths for one triple. */
-class SwiftSdkTarget(val triple: String, val swiftResources: File) {
+class SwiftSdkTarget(val triple: String, val swiftResources: File, val swiftStaticResources: File?) {
     /** Where the runtime libs and SwiftFoundation.jar live for [arch]. */
     fun androidLibDir(arch: String): File {
         val android = File(swiftResources, "android")
         // Per-arch SDK bundles (SCADE 6.3) keep libs directly in android/; a
         // multi-arch tree keeps them in android/<arch>/.
         return if (File(android, "libswiftCore.so").isFile) android else File(android, arch)
+    }
+
+    /**
+     * The dynamic libs the static runtime still needs (6.2.x: libswiftCore, libswiftJNI),
+     * which scd ships with a --static-swift-stdlib build.
+     */
+    fun staticRuntimeLibs(arch: String): List<File> {
+        val android = File(swiftStaticResources ?: return emptyList(), "android")
+        val dir = if (File(android, arch).isDirectory) File(android, arch) else android
+        return dir.listFiles { f -> f.isFile && f.name.endsWith(".so") }?.sortedBy { it.name } ?: emptyList()
     }
 
     companion object {
@@ -142,7 +152,9 @@ class SwiftSdkTarget(val triple: String, val swiftResources: File) {
                     val entry = triples?.get(triple) ?: return@mapNotNull null
                     val resources = entry["swiftResourcesPath"] as? String ?: return@mapNotNull null
                     val path = File(resources).takeIf { it.isAbsolute } ?: File(json.parentFile, resources)
-                    SwiftSdkTarget(triple, path.canonicalFile)
+                    val static = (entry["swiftStaticResourcesPath"] as? String)
+                        ?.let { File(it).takeIf { f -> f.isAbsolute } ?: File(json.parentFile, it) }
+                    SwiftSdkTarget(triple, path.canonicalFile, static?.canonicalFile)
                 }.toList()
             }
             return when (matches.size) {
