@@ -43,8 +43,8 @@ abstract class GenerateBridgingTask() : SpmGradlePluginTask() {
         )
     }
 
-    // Host Apple swift (e.g. 6.2.4) is used by this task; scd ships a different
-    // swift (e.g. 6.2.1). Sharing one scratch path lets host swift write
+    // Host Apple swift is used by this task; scd ships a different swift.
+    // Sharing one scratch path lets host swift write
     // Modules-tool/ swiftmodules that scd can't import on the next build.
     // Run in a sibling scratch dir so the two compilers never overlap, then
     // mirror the plugin outputs into the main scratch path so scd archive's
@@ -58,9 +58,9 @@ abstract class GenerateBridgingTask() : SpmGradlePluginTask() {
             return sibling
         }
 
-    // Prebuilt swift-syntax is off here: with Swift 6.2 a host tool mixing it with
-    // swift-syntax built from source broke. Swift 6.3's SwiftPM uses it only when
-    // every host module can, and `-Pswiftpm.prebuilts=true` turns it back on.
+    // Prebuilt swift-syntax is off by default: a host tool mixing it with
+    // swift-syntax built from source can fail to build. `-Pswiftpm.prebuilts=true`
+    // turns it on.
     @get:Internal
     val prebuiltsArguments: List<String>
         get() = if (project.findProperty("swiftpm.prebuilts")?.toString() == "true") emptyList()

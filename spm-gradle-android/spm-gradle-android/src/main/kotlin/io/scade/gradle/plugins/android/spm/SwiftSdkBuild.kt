@@ -113,13 +113,13 @@ class SwiftSdkTarget(val triple: String, val swiftResources: File, val swiftStat
     /** Where the runtime libs and SwiftFoundation.jar live for [arch]. */
     fun androidLibDir(arch: String): File {
         val android = File(swiftResources, "android")
-        // Per-arch SDK bundles (SCADE 6.3) keep libs directly in android/; a
+        // Per-arch SDK bundles keep libs directly in android/; a
         // multi-arch tree keeps them in android/<arch>/.
         return if (File(android, "libswiftCore.so").isFile) android else File(android, arch)
     }
 
     /**
-     * The dynamic libs the static runtime still needs (6.2.x: libswiftCore, libswiftJNI),
+     * The dynamic libs the static runtime still needs (e.g. libswiftCore, libswiftJNI),
      * which scd ships with a --static-swift-stdlib build.
      */
     fun staticRuntimeLibs(arch: String): List<File> {

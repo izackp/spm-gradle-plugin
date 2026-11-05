@@ -6,7 +6,7 @@ import java.io.File
 import java.nio.file.Files
 
 
-/** A macOS-host Swift SDK description over SCADE's Swift SDK (scade-swift-android-sdk, 6.3+). */
+/** A macOS-host Swift SDK description over SCADE's Swift SDK (scade-swift-android-sdk). */
 object ScadeSwiftSdk {
     /** Writes the description into the empty or missing [dir]. */
     fun write(dir: File, sdk: File, ndk: File, triples: Map<String, String>) {

@@ -7,7 +7,7 @@ import java.nio.file.Files
 
 
 /**
- * A Swift SDK description over SCADE's swift-android-compiler toolchain (6.2.x), so
+ * A Swift SDK description over SCADE's swift-android-compiler toolchain, so
  * `swift build --swift-sdk` builds against the runtime `scd archive` uses.
  *
  * That toolchain is not a Swift SDK: one resource tree serves every arch

@@ -56,12 +56,6 @@ abstract class AssembleSwiftPackageTask() : SpmGradlePluginTask() {
      * Where scd is told to write. It lays out `lib/<abi>/...` underneath, and
      * `outputDirectory` is the `lib` directory AGP packages from -- so derive one
      * from the other rather than hardcoding the project build dir.
-     *
-     * They used to be independent: `--output` was always the project build dir
-     * while `outputDirectory` defaulted to `<build>/lib`. That held only while
-     * nothing moved `outputDirectory`; moving it redirected what AGP packaged
-     * while scd kept writing to the old path, producing an APK with no library
-     * and no error. Deriving it makes that state unrepresentable.
      */
     private fun scdOutputRoot(): File = outputDirectory.get().asFile.parentFile
 

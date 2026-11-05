@@ -105,11 +105,8 @@ open class SpmGradlePlugin @Inject constructor (objects: ObjectFactory)
             it.sdkVersion.set(extension.sdkVersion)
             it.developerDir.set(extension.developerDir)
 
-            // Per configuration, because Debug and Release produce different
-            // binaries and previously archived to the same `<build>/lib`: whichever
-            // ran last won, and nothing recorded which configuration the artifacts
-            // came from. A Release build could therefore be verified and packaged
-            // as Debug.
+            // Per configuration: Debug and Release produce different binaries, and
+            // a shared `<build>/lib` would let one be packaged as the other.
             //
             // Set here rather than in the task's own defaults because this is where
             // `debuggable` is known, and before AGP reads the property -- setting it
