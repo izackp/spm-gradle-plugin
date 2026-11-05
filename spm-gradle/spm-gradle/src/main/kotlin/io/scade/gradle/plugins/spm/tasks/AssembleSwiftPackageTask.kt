@@ -37,6 +37,9 @@ abstract class AssembleSwiftPackageTask() : SpmGradlePluginTask() {
     @Internal
     val toolchainVersion: Property<String> = project.objects.property(String::class.java)
 
+    @Internal
+    val sdkVersion: Property<String> = project.objects.property(String::class.java)
+
     @OutputDirectory
     val outputDirectory: DirectoryProperty = project.objects.directoryProperty()
 

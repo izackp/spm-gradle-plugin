@@ -1,6 +1,9 @@
 package io.scade.gradle.plugins.spm.tasks
 
+import io.scade.gradle.plugins.spm.scadeSwiftSdkDir
+import io.scade.gradle.plugins.spm.scadeSwiftSdkSwiftVersion
 import io.scade.gradle.plugins.spm.swiftAndroidToolchainDir
+import io.scade.gradle.plugins.spm.swiftReleaseToolchainDir
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.RegularFile
 import org.gradle.api.file.RegularFileProperty
@@ -32,12 +35,26 @@ abstract class ResolveScdToolTask() : DefaultTask() {
     @Input
     val toolchainVersion: Property<String> = project.objects.property(String::class.java)
 
+    /**
+     * The SCADE Swift SDK (scade-swift-android-sdk) version to install, with the swift.org
+     * toolchain of the Swift release that built it.
+     */
+    @Optional
+    @Input
+    val sdkVersion: Property<String> = project.objects.property(String::class.java)
+
     @OutputFile
     val scdFile: RegularFileProperty = project.objects.fileProperty()
 
     init {
         scdFile.convention {
             Paths.get(System.getProperty("user.home")).resolve("Library/Developer/Scade/Toolchains/scd/bin/scd").toFile()
+        }
+        outputs.upToDateWhen {
+            toolchainVersion.orNull?.let { swiftAndroidToolchainDir(it).isDirectory } != false &&
+                sdkVersion.orNull?.let { v ->
+                    scadeSwiftSdkSwiftVersion(scadeSwiftSdkDir(v))?.let(::swiftReleaseToolchainDir) != null
+                } != false
         }
     }
 
@@ -93,19 +110,48 @@ abstract class ResolveScdToolTask() : DefaultTask() {
         } else {
             project.logger.lifecycle("Scade Build Tool is ready to use.")
             val toolchain = toolchainVersion.orNull
-            if (toolchain == null) {
+            val sdk = sdkVersion.orNull
+            if (toolchain == null && sdk == null) {
                 project.logger.lifecycle("Check and update Swift for Android toolchain ...")
                 project.exec {
                     it.commandLine(scdFile.asFile.get(), "toolchain", "install-latest")
                 }
-            } else if (!swiftAndroidToolchainDir(toolchain).isDirectory) {
+            } else if (toolchain != null && !swiftAndroidToolchainDir(toolchain).isDirectory) {
                 project.logger.lifecycle("Installing Swift for Android toolchain $toolchain ...")
                 project.exec {
                     it.commandLine(scdFile.asFile.get(), "toolchain", "install", "--version", toolchain)
                 }
             }
+            sdk?.let(::installSdk)
         }
 
+    }
+
+    private fun installSdk(version: String) {
+        val sdk = scadeSwiftSdkDir(version)
+        if (scadeSwiftSdkSwiftVersion(sdk) == null) {
+            project.logger.lifecycle("Installing SCADE Swift SDK $version ...")
+            project.exec {
+                it.commandLine(scdFile.asFile.get(), "toolchain", "install",
+                    "--package", "scade-swift-android-sdk", "--version", version)
+            }
+        }
+        val swift = scadeSwiftSdkSwiftVersion(sdk)
+            ?: throw RuntimeException("Installed SCADE Swift SDK $version, but $sdk has no info.json with its Swift version")
+        if (swiftReleaseToolchainDir(swift) != null) return
+
+        val name = "swift-$swift-RELEASE"
+        val pkgFile = temporaryDir.resolve("$name-osx.pkg")
+        val url = URI("https://download.swift.org/swift-$swift-release/xcode/$name/$name-osx.pkg").toURL()
+        project.logger.lifecycle("Installing the Swift $swift toolchain SCADE Swift SDK $version was built with, from $url ...")
+        url.openStream().use { input -> FileOutputStream(pkgFile).use { input.copyTo(it) } }
+        project.exec {
+            it.commandLine("installer", "-pkg", "$pkgFile", "-target", "CurrentUserHomeDirectory")
+        }
+        pkgFile.delete()
+        if (swiftReleaseToolchainDir(swift) == null) {
+            throw RuntimeException("Installed $pkgFile, but no $name.xctoolchain with swift-build is in ~/Library/Developer/Toolchains")
+        }
     }
 
     private fun parseVersion(version: String): Triple<Int, Int, Int> {

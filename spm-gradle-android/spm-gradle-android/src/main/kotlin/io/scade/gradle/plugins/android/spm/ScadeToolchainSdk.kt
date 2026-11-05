@@ -56,7 +56,7 @@ object ScadeToolchainSdk {
                     "swiftStaticResourcesPath" to File(toolchain, "usr/lib/swift_static").absolutePath,
                 )),
             ))))
-            variants += mapOf("path" to arch, "supportedTriples" to listOf("arm64-apple-macosx"))
+            variants += mapOf("path" to arch, "supportedTriples" to listOf(macHostTriple()))
         }
 
         File(bundle, "info.json").writeText(JsonOutput.toJson(mapOf(

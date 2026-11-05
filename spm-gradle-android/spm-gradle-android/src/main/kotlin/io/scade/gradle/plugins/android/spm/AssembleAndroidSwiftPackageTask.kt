@@ -1,7 +1,10 @@
 package io.scade.gradle.plugins.android.spm
 
 import io.scade.gradle.plugins.spm.TargetPlatform
+import io.scade.gradle.plugins.spm.scadeSwiftSdkDir
+import io.scade.gradle.plugins.spm.scadeSwiftSdkSwiftVersion
 import io.scade.gradle.plugins.spm.swiftAndroidToolchainDir
+import io.scade.gradle.plugins.spm.swiftReleaseToolchainDir
 import io.scade.gradle.plugins.spm.tasks.AssembleSwiftPackageTask
 import io.scade.gradle.plugins.spm.tasks.PerPlatformInvocation
 
@@ -130,20 +133,32 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
         var foundationJar: File? = null
         val abis = effectiveAndroidArchs()
         val tripleOf = { arch: String -> "$arch-unknown-linux-android$apiLevel" }
+        val triples = { abis.associate { abi ->
+            val arch = swiftArchByAbi[abi] ?: throw GradleException("No Swift architecture for Android ABI $abi")
+            arch to tripleOf(arch)
+        } }
+        val ndkOrThrow = { what: File -> ndkPath.orNull?.asFile
+            ?: throw GradleException("Building with the Swift for Android runtime at $what needs the Android NDK") }
+        val sdks = File(temporaryDir, "swift-sdks")
         val scadeToolchain = scadeToolchain()
+        val scadeSdk = scadeSdk()
+        if (scadeToolchain != null && scadeSdk != null) {
+            throw GradleException("swiftpm { toolchainVersion } and swiftpm { sdkVersion } are both set; set one")
+        }
         val sdkRoots: List<File>?
         val swiftBuild: List<String>
         if (scadeToolchain != null) {
-            val sdks = File(temporaryDir, "swift-sdks")
             project.delete(sdks)
-            val ndk = ndkPath.orNull?.asFile
-                ?: throw GradleException("Building with the Swift for Android toolchain at $scadeToolchain needs the Android NDK")
-            ScadeToolchainSdk.write(sdks, scadeToolchain, ndk, abis.associate { abi ->
-                val arch = swiftArchByAbi[abi] ?: throw GradleException("No Swift architecture for Android ABI $abi")
-                arch to tripleOf(arch)
-            })
+            ScadeToolchainSdk.write(sdks, scadeToolchain, ndkOrThrow(scadeToolchain), triples())
             swiftBuild = listOf(File(scdFile.asFile.get().parentFile.parentFile, "lib/swift-build").absolutePath,
                 "--toolchain", scadeToolchain.absolutePath, "--swift-sdks-path", sdks.absolutePath)
+            sdkRoots = listOf(sdks)
+        } else if (scadeSdk != null) {
+            val (sdk, hostToolchain) = scadeSdk
+            project.delete(sdks)
+            ScadeSwiftSdk.write(sdks, sdk, ndkOrThrow(sdk), triples())
+            swiftBuild = listOf(File(hostToolchain, "usr/bin/swift-build").absolutePath,
+                "--swift-sdks-path", sdks.absolutePath)
             sdkRoots = listOf(sdks)
         } else {
             swiftBuild = swiftCommand + "build"
@@ -245,6 +260,23 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
             throw GradleException("swiftpm.toolchainVersion $version: no Swift for Android toolchain at $dir")
         }
         return dir
+    }
+
+    /**
+     * The pinned SCADE Swift SDK scd installed (`swiftpm { sdkVersion }`) and the swift.org
+     * toolchain of the Swift release that built it, which the build runs on.
+     */
+    private fun scadeSdk(): Pair<File, File>? {
+        if (project.findProperty("swiftpm.swiftCommand") != null) return null
+        val version = sdkVersion.orNull ?: return null
+        if (!scdFile.isPresent) return null
+        val sdk = scadeSwiftSdkDir(version)
+        val swift = scadeSwiftSdkSwiftVersion(sdk)
+            ?: throw GradleException("swiftpm.sdkVersion $version: no SCADE Swift SDK at $sdk")
+        val hostToolchain = swiftReleaseToolchainDir(swift)
+            ?: throw GradleException("swiftpm.sdkVersion $version: no Swift $swift toolchain " +
+                "(swift-$swift-RELEASE.xctoolchain) in ~/Library/Developer/Toolchains")
+        return sdk to hostToolchain
     }
 
     private fun ndkBinDir(): File? {

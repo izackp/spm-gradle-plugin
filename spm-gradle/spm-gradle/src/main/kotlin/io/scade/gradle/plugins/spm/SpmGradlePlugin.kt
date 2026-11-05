@@ -45,13 +45,14 @@ open class SpmGradlePlugin @Inject constructor (objects: ObjectFactory)
 
         // resolveScdTool installs scd with the macOS `installer`. On macOS the
         // swift-sdk backend needs it too: scd installs the Swift for Android
-        // toolchain, and the toolchain's SwiftPM is scd's swift-build.
+        // toolchain or SCADE's Swift SDK that the build runs on.
         if (SwiftBackend.of(project) == SwiftBackend.SCD || OperatingSystem.current().isMacOsX) {
             resolveScdTask = project.tasks.register("resolveScdTool", ResolveScdToolTask::class.java) {
                 it.scd.set(extension.scd)
                 it.scdAutoUpdate.set(extension.scdAutoUpdate)
                 it.scdVersion.set(extension.scdVersion)
                 it.toolchainVersion.set(extension.toolchainVersion)
+                it.sdkVersion.set(extension.sdkVersion)
             }
         }
 
@@ -101,6 +102,7 @@ open class SpmGradlePlugin @Inject constructor (objects: ObjectFactory)
             it.assembleDebug.set(debuggable)
             it.scdOptions.set(extension.scdOptions)
             it.toolchainVersion.set(extension.toolchainVersion)
+            it.sdkVersion.set(extension.sdkVersion)
             it.developerDir.set(extension.developerDir)
 
             // Per configuration, because Debug and Release produce different
