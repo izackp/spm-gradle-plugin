@@ -1,0 +1,143 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.scade.gradle.plugins.android",
+    "module": "spm-gradle-android",
+    "version": "1.4.5.3",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.9"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.0.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "spm-gradle-android-1.4.5.3.jar",
+          "url": "spm-gradle-android-1.4.5.3.jar",
+          "size": 43423,
+          "sha512": "0c47f890b59fd6e43e4c8ba8d2d26aab505b8cfdc4cf67b2851607c7f5aa1374210baccb83a9169d997c7a9c0bac80304ca58088192a80adc444feba5374ebb4",
+          "sha256": "7f73a926a7b731ee285d97b966ed1ddf92d17c3af94cd1d62495ba532156a764",
+          "sha1": "8da3e066a9a371bd5d3f9fcba08e97d7474998c7",
+          "md5": "0c4648cc198ad4260010bfc436bae4e8"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-gradle-plugin",
+          "version": {
+            "requires": "2.0.10"
+          }
+        },
+        {
+          "group": "com.android.tools.ddms",
+          "module": "ddmlib",
+          "version": {
+            "requires": "31.6.0"
+          }
+        },
+        {
+          "group": "io.scade.gradle.plugins",
+          "module": "spm-gradle",
+          "version": {
+            "requires": "1.4.5.3"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.0.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "spm-gradle-android-1.4.5.3.jar",
+          "url": "spm-gradle-android-1.4.5.3.jar",
+          "size": 43423,
+          "sha512": "0c47f890b59fd6e43e4c8ba8d2d26aab505b8cfdc4cf67b2851607c7f5aa1374210baccb83a9169d997c7a9c0bac80304ca58088192a80adc444feba5374ebb4",
+          "sha256": "7f73a926a7b731ee285d97b966ed1ddf92d17c3af94cd1d62495ba532156a764",
+          "sha1": "8da3e066a9a371bd5d3f9fcba08e97d7474998c7",
+          "md5": "0c4648cc198ad4260010bfc436bae4e8"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "spm-gradle-android-1.4.5.3-javadoc.jar",
+          "url": "spm-gradle-android-1.4.5.3-javadoc.jar",
+          "size": 261,
+          "sha512": "682a2c1a635e9d5ebe79fc5c753b5b2b1ff67b1b08a2ba8eddd5f0b6d5fc17afbf24c051dec4fa537edce2d629509cc8dcc7ca9fe949209837be036589f346ea",
+          "sha256": "7748f27acb49776b5ee854956c36d66a1d8481759f107e368b71641f9d1518ad",
+          "sha1": "43bf0116546ddbaff288b6e9814870468214aec7",
+          "md5": "4e6e1d567afb9d3b3648f7fdeac08fdb"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "spm-gradle-android-1.4.5.3-sources.jar",
+          "url": "spm-gradle-android-1.4.5.3-sources.jar",
+          "size": 11683,
+          "sha512": "aaa179ec7b4a8af340f2b78c2694a5961a71cc3d8a4ea4321d874754114c152c52eaad2e3680179b16336a109f5946e09279e4dddd06a430ef41603dcfc81d72",
+          "sha256": "3a9ce7b46009bb2b504abe45b50fafb1a81ee31161ecb8f7135afb818be8b2a5",
+          "sha1": "53d7e2ca0b540f464c7236214e2523b2eba443b8",
+          "md5": "bef9dc3119dd8d6e086edec2056f73bf"
+        }
+      ]
+    }
+  ]
+}
