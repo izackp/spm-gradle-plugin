@@ -176,7 +176,7 @@ abstract class AssembleAndroidSwiftPackageTask: AssembleSwiftPackageTask() {
             val triple = tripleOf(arch)
             val sdk = sdkRoots?.let { SwiftSdkTarget.find(triple, it) } ?: SwiftSdkTarget.find(triple)
             val opts = SwiftSdkOptions.translate(scdOptions.get(), "android-$abi").plus(
-                swiftc = listOf("-Xlinker", "--build-id=sha1", "-Xlinker", "-z,max-page-size=16384") +
+                swiftc = listOf("-Xlinker", "--build-id=sha1", "-Xlinker", "-z", "-Xlinker", "max-page-size=16384") +
                     (ndkBin?.let { listOf("-tools-directory", it.absolutePath) } ?: emptyList()),
                 cc = listOf("-fPIC"),
                 cxx = listOf("-fPIC"),
